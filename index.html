@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link href="dist/output.css" rel="stylesheet">
+    <link href="dist/custom.css" rel="stylesheet">
+    <script src="https://d3js.org/d3.v7.min.js" defer></script>
+    <script defer src="https://unpkg.com/@alpinejs/ui@3.12.0-beta.0/dist/cdn.min.js" defer></script>
+    <script defer src="https://unpkg.com/@alpinejs/focus@3.12.0/dist/cdn.min.js" defer></script>
+    <script defer src="https://unpkg.com/alpinejs@3.12.0/dist/cdn.min.js" defer></script>
+    <script src="./scripts/map.js" defer></script>
+    <script src="./scripts/kmeans.js" defer></script>
+    <script defer src="./scripts/tabs/2.js" defer></script>
+    <script src="./scripts/tabs/1.js" defer></script>
+    <script src="./scripts/tabs/3.js" defer></script>
+    <style>
+
+    </style>
+    <title>VAST 2022 | Mini Challenge 3</title>
+</head>
+
+<body class="scroll-smooth antialiased">
+    <header class="text-center space-y-4 p-12">
+        <h1 class="text-5xl font-bold">Financial Health of Engagement, Ohio</h1>
+        <h2 class="text-xl">Bharath, Chiren, Pulkit, Siddharth, Simran, Zoe</h2>
+    </header>
+    <main class="max-w-7xl mx-auto relative">
+        <div class="grid grid-cols-4 gap-12 my-4" x-data>
+            <div class="col-span-3 my-auto">
+                <label for="weeks">Weeks</label>
+                <input id="weeks" name="weeks" type="range" value="5" min="0" max="65" step="5"
+                    class="w-full h-2 bg-gray-200 rounded-lg cursor-pointer accent-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-opacity-50"
+                    @change="$dispatch('week-change', $event.target.value)" />
+                <!-- add ticks -->
+                <div class="flex justify-between text-xs text-gray-400">
+                    <span>00</span>
+                    <span>05</span>
+                    <span>10</span>
+                    <span>15</span>
+                    <span>20</span>
+                    <span>25</span>
+                    <span>30</span>
+                    <span>35</span>
+                    <span>40</span>
+                    <span>45</span>
+                    <span>50</span>
+                    <span>55</span>
+                    <span>60</span>
+                    <span>65</span>
+                </div>
+            </div>
+            <div class="relative">
+                <label for="filter">Filter</label>
+                <select name="filter" id="filter" class="w-full p-2 rounded-md shadow-md"
+                    @change="$dispatch('cluster-change', $event.target.value)">
+                    <option value="individual">Individual</option>
+                    <option value="cluster">Cluster</option>
+                </select>
+            </div>
+        </div>
+        <section x-data="{
+            selectedTabIndex: 1,
+            mapTitle: {
+                1: 'Map of Pubs & Restaurants',
+                2: 'Spider Map of Employers and Employees',
+                3: 'Map of Residents'
+            },
+            selectTab(i) {
+                window.currentTab = i+1;
+                this.selectedTabIndex = i;
+                window.d3.selectAll('.participants').attr('opacity', 0);
+                window.d3.selectAll('.show-on-BizTab').style('visibility', 'hidden');
+                window.d3.selectAll('.show-on-pubTab').style('visibility', 'hidden');
+                this.$dispatch('tab' + (i + 1));
+            },
+            getMapTitle() {
+                return this.mapTitle[this.selectedTabIndex + 1];
+            },
+            init(){
+                window.currentTab = this.selectedTabIndex + 1;
+            }
+        }" class="my-12">
+            <div class="flex justify-center items-stretch gap-4">
+                <button @click="selectTab(0)"
+                    :class="selectedTabIndex === 0 ? 'bg-indigo-500 !text-white pointer-events-none shadow-indigo-200' : 'bg-transparent'"
+                    class="inline-flex px-4 py-2 hover:text-indigo-600 rounded-md shadow-md">
+                    Restaurant View
+                </button>
+                <button @click="selectTab(1)"
+                    :class="selectedTabIndex === 1 ? 'bg-indigo-500 !text-white pointer-events-none shadow-indigo-200' : 'bg-transparent'"
+                    class="inline-flex px-4 py-2 hover:text-indigo-600 rounded-md shadow-md">
+                    Business View
+                </button>
+                <button @click="selectTab(2)"
+                    :class="selectedTabIndex === 2 ? 'bg-indigo-500 !text-white pointer-events-none shadow-indigo-200' : 'bg-transparent'"
+                    class="inline-flex px-4 py-2 hover:text-indigo-600 rounded-md shadow-md">
+                    Resident View
+                </button>
+            </div>
+            <div class="grid grid-cols-2 gap-8 border-0 border-gray-200 mt-4">
+                <div id="map-container" class="my-auto relative">
+                    <h2 class="font-medium text-lg text-center mb-8" x-text="getMapTitle()">Spider Map of Employers and Employees</h2>
+                    <button id="clearBtnTab3" x-show="selectedTabIndex===2" class="bg-red-500 shadow-red-200 inline-flex px-4 absolute right-10 top-16 text-xs py-2 hover:bg-red-600 rounded-md shadow-md text-white">Clear Selection</button>
+                    <button id="clearBtnTab2" class="bg-red-500 shadow-red-200 inline-flex px-4 absolute right-10 top-16 text-xs py-2 hover:bg-red-600 rounded-md shadow-md text-white">Clear Selection</button>
+                    <button id="clearBtnTab1" style="visibility: hidden;" class="show-on-pubTab bg-red-500 shadow-red-200 inline-flex px-4 absolute right-10 top-16 text-xs py-2 hover:bg-red-600 rounded-md shadow-md text-white">Clear Selection</button>
+                    <svg viewBox="0 0 800 600" class="w-full" id="map">
+                    </svg>
+                </div>
+                <div x-data x-tabs x-model="selectedTabIndex" class="mx-auto w-full">
+                    <div x-tabs:panels class=" mx-auto">
+                        <section x-tabs:panel class="p-8">
+                            <div>
+                                <h2 class="font-semibold text-lg text-center">Revenue of Selected Pubs and Restaurants by Week</h2>
+                                <svg id="pub_line_chart" viewBox="0 0 800 500"></svg>
+                            </div>
+                            <div class="mt-8">
+                                <h2 class="font-semibold text-lg text-center">Foot Fall of Selected Restaurant or Pub</h2>
+                                <svg id="candle_chart" viewBox="0 0 800 500"></svg>
+                            </div>
+                        </section>
+
+                        <section x-tabs:panel class="p-8">
+                            <div>
+                                <h2 class="font-semibold text-lg text-center">Salaries Paid Per<span id="lineGraph2Title"> Business </span> </h2>
+                                <svg id="biz_line_chart" viewBox="0 0 800 500"></svg>
+                            </div>
+                            <div class="mt-8">
+                                <h2 class="font-semibold text-lg text-center">Employee Count For <span
+                                    id="waterFallTitle">Business: None Selected</span></h2>
+                                <svg id="waterfall_chart" viewBox="0 0 800 500"></svg>
+                            </div>
+                        </section>
+                        <section x-tabs:panel class="p-8">
+                            <div>
+                                <h2 class="font-semibold text-lg text-center">Savings</h2>
+                                <svg id="line-chart" viewBox="0 0 800 500"></svg>
+                            </div>
+                            <div class="mt-8">
+                                <h2 class="font-semibold text-lg text-center">Wages v/s Expenses</h2>
+                                <svg id="wages-vs-expense-chart" viewBox="0 0 800 500"></svg>
+                                <h2 class="font-semibold text-lg text-center" id="stacked-bar-chart-title"></h2>
+                            </div>
+                        </section>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+    </main>
+</body>
+
+</html>
